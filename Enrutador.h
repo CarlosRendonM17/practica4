@@ -1,41 +1,36 @@
 #ifndef ENRUTADOR_H
 #define ENRUTADOR_H
 
-#include <unordered_map>
+#include <map>
 #include <string>
-#include <limits>
-
 using namespace std;
 
-static const int INF = numeric_limits<int>::max();
-
-class Enrutador {
-private:
-    string nombre;
-    unordered_map<string, int> vecinos;
-
+class Router {
 public:
-    Enrutador() = default;
-    explicit Enrutador(const string& n);
+    int id;
+    map<Router*, int> vecinos;
 
+    
+    map<string, pair<int, string>> tablaEnrutamiento;
+
+    Router(int id);
+    void nuevoVecino(Router* vecino, int costo);
+    void eliminarVecino(Router* vecino);
 
     string getNombre() const;
-    void setNombre(const string& n);
+    map<string, int> getTabla() const;
+    void mostrarConexiones() const;
 
 
-    void actualizarVecino(const string& destino, int costo);
+    void actualizarTabla(const map<string, pair<int, string>>& nueva);
 
+   
+    void agregarConexion(const string& nombreVecino, int costo);
+    void eliminarConexion(const string& nombreVecino);
 
-    void eliminarVecino(const string& destino);
-
-
-    const unordered_map<string, int>& obtenerVecinos() const;
-
-
-    bool tieneVecino(const string& destino) const;
-
-
-    int costoA(const string& destino) const;
+    
+    void mostrarTablaEnrutamiento(const map<string, pair<int, string>>& tabla) const;
+    void mostrarTablaEnrutamiento() const;
 };
 
 #endif

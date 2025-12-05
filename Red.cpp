@@ -1,230 +1,315 @@
-#include "Red.h"
+#include "red.h"
+#include <iostream>
 #include <fstream>
-#include <sstream>
+#include <queue>
+#include <limits>
 #include <algorithm>
-#include <cstdlib>
-#include <ctime>
+#include <sstream>
+#include <iomanip>
+using namespace std;
 
-// ---------- MÉTODOS DE ENRUTADOR ----------
+const int INF = numeric_limits<int>::max() / 4; 
 
-Enrutador::Enrutador(const string& n) : nombre(n) {}
+Red::Red() {}
 
-string Enrutador::getNombre() const { return nombre; }
-
-void Enrutador::setNombre(const string& n) { nombre = n; }
-
-void Enrutador::actualizarVecino(const string& destino, int costo) {
-    if (costo > 0)
-        vecinos[destino] = costo;
+Red::Red(int n) {
+    for (int i = 1; i <= n; i++)
+        enrutadores.push_back(new Router(i));
 }
 
-void Enrutador::eliminarVecino(const string& destino) {
-    vecinos.erase(destino);
+Red::~Red() {
+    for (auto r : enrutadores) delete r;
 }
 
-const unordered_map<string, int>& Enrutador::obtenerVecinos() const {
-    return vecinos;
+int Red::cantidadEnrutadores() const {
+    return enrutadores.size();
 }
 
-bool Enrutador::tieneVecino(const string& destino) const {
-    return vecinos.find(destino) != vecinos.end();
-}
+void Red::generarRedAleatoria() {
+    for (auto r : enrutadores)
+        r->vecinos.clear();
 
-int Enrutador::costoA(const string& destino) const {
-    auto it = vecinos.find(destino);
-    return (it != vecinos.end()) ? it->second : INF;
-}
-
-// ---------- MÉTODOS DE RED ----------
-
-bool Red::existe(const string& nombre) const {
-    return enrutadores.find(nombre) != enrutadores.end();
-}
-
-void Red::agregarEnrutador(const string& nombre) {
-    if (nombre.empty()) {
-        cout << "Nombre vacío no permitido.\n";
-        return;
-    }
-    if (existe(nombre)) {
-        cout << "Ya existe el enrutador " << nombre << "\n";
-        return;
-    }
-    enrutadores.emplace(nombre, Enrutador(nombre));
-    cout << "Enrutador " << nombre << " agregado.\n";
-}
-
-void Red::eliminarEnrutador(const string& nombre) {
-    if (!existe(nombre)) {
-        cout << "No existe " << nombre << "\n";
-        return;
-    }
-    enrutadores.erase(nombre);
-    for (auto& p : enrutadores) {
-        p.second.eliminarVecino(nombre);
-    }
-    cout << "Enrutador " << nombre << " eliminado.\n";
-}
-
-void Red::actualizarEnlace(const string& a, const string& b, int costo) {
-    if (a == b || !existe(a) || !existe(b) || costo <= 0) {
-        cout << "Datos inválidos para enlace.\n";
-        return;
-    }
-    enrutadores.at(a).actualizarVecino(b, costo);
-    enrutadores.at(b).actualizarVecino(a, costo);
-    cout << "Enlace " << a << " <-> " << b << " actualizado con costo " << costo << "\n";
-}
-
-void Red::borrarEnlace(const string& a, const string& b) {
-    if (!existe(a) || !existe(b)) {
-        cout << "Uno o ambos enrutadores no existen.\n";
-        return;
-    }
-    enrutadores.at(a).eliminarVecino(b);
-    enrutadores.at(b).eliminarVecino(a);
-    cout << "Enlace " << a << " - " << b << " eliminado.\n";
-}
-
-void Red::cargarDesdeArchivo(const string& nombreArchivo) {
-    ifstream f(nombreArchivo);
-    if (!f) {
-        cout << "No se pudo abrir archivo.\n";
-        return;
-    }
-    enrutadores.clear();
-    string linea;
-    while (getline(f, linea)) {
-        if (linea.empty() || linea[0] == '#') continue;
-        stringstream ss(linea);
-        string a, b;
-        int costo;
-        if (ss >> a >> b >> costo) {
-            if (!existe(a)) agregarEnrutador(a);
-            if (!existe(b)) agregarEnrutador(b);
-            actualizarEnlace(a, b, costo);
+    int n = enrutadores.size();
+    for (int i = 0; i < n; i++)
+        for (int j = i + 1; j < n; j++) {
+            int c = rand() % 20 + 1;
+            enrutadores[i]->nuevoVecino(enrutadores[j], c);
+            enrutadores[j]->nuevoVecino(enrutadores[i], c);
         }
-    }
-    cout << "Topología cargada desde " << nombreArchivo << "\n";
 }
 
-void Red::guardarEnArchivo(const string& nombreArchivo) const {
-    ofstream f(nombreArchivo);
-    if (!f) {
-        cout << "No se pudo guardar archivo.\n";
-        return;
-    }
-    for (const auto& [a, enr] : enrutadores) {
-        for (const auto& [b, costo] : enr.obtenerVecinos()) {
-            if (a < b)
-                f << a << " " << b << " " << costo << "\n";
-        }
-    }
-    cout << "Red guardada en " << nombreArchivo << "\n";
-}
-
-void Red::generarAleatoria(int n, int costoMax, double probEnlace) {
-    if (n <= 0 || costoMax <= 0) {
-        cout << "Parámetros inválidos.\n";
-        return;
-    }
-    enrutadores.clear();
-    for (int i = 0; i < n; ++i)
-        agregarEnrutador("E" + to_string(i));
-    for (int i = 0; i < n; ++i)
-        for (int j = i + 1; j < n; ++j)
-            if (((double)rand() / RAND_MAX) < probEnlace) {
-                int costo = (rand() % costoMax) + 1;
-                actualizarEnlace("E" + to_string(i), "E" + to_string(j), costo);
-            }
-    cout << "Red aleatoria generada.\n";
-}
-
-void Red::imprimirRed() const {
-    cout << "=== Red Actual ===\n";
+void Red::mostrarRed() const {
     if (enrutadores.empty()) {
-        cout << "(vacía)\n";
+        cout << "Red vacia.\n";
         return;
     }
-    for (const auto& [nombre, enr] : enrutadores) {
-        cout << nombre << " -> ";
-        const auto& vec = enr.obtenerVecinos();
-        if (vec.empty()) {
-            cout << "sin vecinos\n";
-            continue;
-        }
-        bool primero = true;
-        for (const auto& [dest, cost] : vec) {
-            if (!primero) cout << ", ";
-            cout << dest << "(" << cost << ")";
-            primero = false;
+
+    cout << "\n========= MATRIZ DE COSTOS =========\n";
+    // ancho de columna
+    const int w = 6;
+    cout << setw(6) << " ";
+    for (auto r : enrutadores) cout << setw(w) << r->getNombre();
+    cout << "\n";
+
+    for (auto a : enrutadores) {
+        cout << setw(6) << a->getNombre();
+        for (auto b : enrutadores) {
+            if (a == b) {
+                cout << setw(w) << 0;
+            } else {
+                int c = INF;
+                auto it = a->vecinos.find(b);
+                if (it != a->vecinos.end()) c = it->second;
+                if (c == INF) cout << setw(w) << "-";
+                else cout << setw(w) << c;
+            }
         }
         cout << "\n";
     }
+    cout << "====================================\n";
 }
 
-pair<int, vector<string>> Red::rutaMasCorta(const string& origen, const string& destino) const {
-    if (!existe(origen) || !existe(destino)) return {-1, {}};
+void Red::mostrarTablasDeEnrutamiento() const {
+    if (enrutadores.empty()) {
+        cout << "Red vacia.\n";
+        return;
+    }
 
-    using P = pair<int, string>;
-    priority_queue<P, vector<P>, greater<P>> pq;
-    unordered_map<string, int> dist;
-    unordered_map<string, string> prev;
+    for (auto origen : enrutadores) {
+        origen->mostrarTablaEnrutamiento();
+    }
+}
 
-    for (const auto& p : enrutadores) dist[p.first] = INF;
+void Red::agregarEnrutador() {
+    int nuevoID = enrutadores.size() + 1;
+    Router* r = new Router(nuevoID);
+    enrutadores.push_back(r);
+    cout << "✔ Enrutador " << r->getNombre() << " agregado.\n";
+}
+
+void Red::eliminarEnrutador(int id) {
+    if (id <= 0 || id > enrutadores.size()) {
+        cout << "❌ ID inválido.\n";
+        return;
+    }
+
+    Router* borrar = enrutadores[id - 1];
+
+    for (auto r : enrutadores)
+        r->eliminarVecino(borrar);
+
+    delete borrar;
+    enrutadores.erase(enrutadores.begin() + (id - 1));
+
+    for (int i = 0; i < enrutadores.size(); i++)
+        enrutadores[i]->id = i + 1;
+
+    cout << "✔ Router eliminado.\n";
+}
+
+void Red::agregarEnlaceSeguro(int id1, int id2, int costo) {
+    if (id1 <= 0 || id2 <= 0 || id1 > enrutadores.size() || id2 > enrutadores.size()) {
+        cout << "❌ IDs fuera de rango.\n";
+        return;
+    }
+    if (id1 == id2) {
+        cout << "❌ No se puede enlazar el mismo enrutador.\n";
+        return;
+    }
+
+    Router* a = enrutadores[id1 - 1];
+    Router* b = enrutadores[id2 - 1];
+
+    a->nuevoVecino(b, costo);
+    b->nuevoVecino(a, costo);
+
+    cout << "✔ Enlace agregado.\n";
+}
+
+void Red::eliminarEnlaceSeguro(int id1, int id2) {
+    if (id1 <= 0 || id2 <= 0 || id1 > enrutadores.size() || id2 > enrutadores.size()) {
+        cout << "❌ IDs fuera de rango.\n";
+        return;
+    }
+
+    Router* a = enrutadores[id1 - 1];
+    Router* b = enrutadores[id2 - 1];
+
+    a->eliminarVecino(b);
+    b->eliminarVecino(a);
+
+    cout << "✔ Enlace eliminado.\n";
+}
+
+void Red::dijkstra(Router* origen, Router* destino, int& costo, vector<Router*>& ruta) const {
+    costo = INF;
+    ruta.clear();
+
+    map<Router*, int> dist;
+    map<Router*, Router*> prev;
+    for (auto r : enrutadores) dist[r] = INF;
+
     dist[origen] = 0;
+
+    using P = pair<int, Router*>;
+    priority_queue<P, vector<P>, greater<P>> pq;
+
     pq.push({0, origen});
 
     while (!pq.empty()) {
-        auto [d, u] = pq.top();
-        pq.pop();
+        auto top = pq.top(); pq.pop();
+        int d = top.first;
+        Router* u = top.second;
+
         if (d > dist[u]) continue;
         if (u == destino) break;
 
-        for (const auto& [v, costo] : enrutadores.at(u).obtenerVecinos()) {
-            int nuevo = d + costo;
-            if (nuevo < dist[v]) {
-                dist[v] = nuevo;
+        for (auto& [v, c] : u->vecinos) {
+            int nd = dist[u] + c;
+            if (nd < dist[v]) {
+                dist[v] = nd;
                 prev[v] = u;
-                pq.push({nuevo, v});
+                pq.push({nd, v});
             }
         }
     }
 
-    if (dist[destino] == INF) return {-1, {}};
+    if (dist[destino] == INF) return;
 
-    vector<string> ruta;
-    string actual = destino;
-    while (actual != origen) {
-        ruta.push_back(actual);
-        actual = prev[actual];
+    costo = dist[destino];
+
+    Router* cur = destino;
+    while (cur != origen) {
+        ruta.push_back(cur);
+        cur = prev[cur];
     }
     ruta.push_back(origen);
     reverse(ruta.begin(), ruta.end());
-    return {dist[destino], ruta};
 }
 
-void Red::preguntarRuta() const {
-    cout << "Origen: ";
-    string a; cin >> a;
-    cout << "Destino: ";
-    string b; cin >> b;
-    auto [costo, ruta] = rutaMasCorta(a, b);
-    if (costo == -1) {
-        cout << "No hay ruta disponible.\n";
+bool Red::guardarEnArchivo(const string& filename) const {
+    ofstream out(filename); 
+    if (!out.is_open()) return false;
+
+    out << enrutadores.size() << "\n";
+
+    for (auto r : enrutadores) {
+        out << r->getNombre();
+        for (auto& [v, c] : r->vecinos)
+            out << " " << v->getNombre() << ":" << c;
+        out << "\n";
+    }
+    return true;
+}
+
+bool Red::cargarDesdeArchivo(const string& filename) {
+    ifstream in(filename); 
+    if (!in.is_open()) return false;
+
+    for (auto r : enrutadores) delete r;
+    enrutadores.clear();
+
+    int n;
+    in >> n;
+    if (!in) return false;
+
+    for (int i = 1; i <= n; i++)
+        enrutadores.push_back(new Router(i));
+
+    string line;
+    getline(in, line); // consumir salto de linea
+
+    while (getline(in, line)) {
+        if (line.empty()) continue;
+
+        stringstream ss(line);
+        string name;
+        ss >> name;
+
+        if (name.size() < 2 || name[0] != 'R') continue;
+        int idx = stoi(name.substr(1));
+        if (idx < 1 || idx > enrutadores.size()) continue;
+
+        Router* r = enrutadores[idx - 1];
+
+        string token;
+        while (ss >> token) {
+            size_t pos = token.find(":");
+            if (pos == string::npos) continue;
+            string vecName = token.substr(0, pos);
+            int costo = 0;
+            try {
+                costo = stoi(token.substr(pos + 1));
+            } catch (...) {
+                continue;
+            }
+
+            if (vecName.size() < 2 || vecName[0] != 'R') continue;
+            int vidx = stoi(vecName.substr(1));
+            if (vidx < 1 || vidx > enrutadores.size()) continue;
+
+            Router* vecino = enrutadores[vidx - 1];
+            r->nuevoVecino(vecino, costo);
+        }
+    }
+
+    return true;
+}
+
+void Red::calcularRutaMasCorta(int o, int d) {
+    if (o <= 0 || d <= 0 || o > enrutadores.size() || d > enrutadores.size()) {
+        cout << "❌ IDs inválidos.\n";
         return;
     }
-    cout << "Costo total: " << costo << "\nRuta: ";
-    for (size_t i = 0; i < ruta.size(); ++i) {
-        cout << ruta[i];
-        if (i + 1 < ruta.size()) cout << " -> ";
+
+    Router* origen = enrutadores[o - 1];
+    Router* destino = enrutadores[d - 1];
+
+    vector<Router*> ruta;
+    int costo;
+
+    dijkstra(origen, destino, costo, ruta);
+
+    if (costo == INF) {
+        cout << "❌ No hay ruta disponible.\n";
+        return;
     }
-    cout << "\n";
+
+    cout << "\nRuta más corta de " << origen->getNombre()
+         << " a " << destino->getNombre() << ":\n";
+
+    for (int i = 0; i < ruta.size(); i++) {
+        cout << ruta[i]->getNombre();
+        if (i < ruta.size() - 1) cout << " -> ";
+    }
+    cout << "\nCosto total: " << costo << "\n";
 }
 
-vector<string> Red::listaEnrutadores() const {
-    vector<string> nombres;
-    for (const auto& p : enrutadores) nombres.push_back(p.first);
-    sort(nombres.begin(), nombres.end());
-    return nombres;
+void Red::actualizarTodasLasTablas() {
+
+    for (auto origen : enrutadores) {
+        map<string, pair<int, string>> tabla;
+
+        for (auto destino : enrutadores) {
+            if (origen == destino) {
+                tabla[destino->getNombre()] = {0, "-"};
+                continue;
+            }
+
+            vector<Router*> ruta;
+            int costo = INF;
+            dijkstra(origen, destino, costo, ruta);
+
+            if (costo == INF) {
+                tabla[destino->getNombre()] = {INF, "-"};
+            } else {
+                string siguiente = (ruta.size() > 1) ? ruta[1]->getNombre() : destino->getNombre();
+                tabla[destino->getNombre()] = {costo, siguiente};
+            }
+        }
+
+        origen->actualizarTabla(tabla);
+    }
 }
+
+

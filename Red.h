@@ -1,43 +1,41 @@
 #ifndef RED_H
 #define RED_H
 
-#include "Enrutador.h"
-#include <unordered_map>
 #include <vector>
 #include <string>
-#include <queue>
-#include <iostream>
-
+#include "enrutador.h"
 using namespace std;
 
-
 class Red {
-private:
-    unordered_map<string, Enrutador> enrutadores;  // Mapa nombre -> enrutador
-
 public:
-    Red() = default;
+    vector<Router*> enrutadores;
 
-    // --- Gestión de enrutadores ---
-    bool existe(const string& nombre) const;
-    void agregarEnrutador(const string& nombre);
-    void eliminarEnrutador(const string& nombre);
+    Red();
+    Red(int n);
+    ~Red();
 
-    // --- Gestión de enlaces ---
-    void actualizarEnlace(const string& a, const string& b, int costo);
-    void borrarEnlace(const string& a, const string& b);
+    int cantidadEnrutadores() const;
 
-    // --- Archivos y topología ---
-    void cargarDesdeArchivo(const string& nombreArchivo);
-    void guardarEnArchivo(const string& nombreArchivo) const;
-    void generarAleatoria(int n, int costoMax, double probEnlace = 0.5);
+    void generarRedAleatoria();
+    void mostrarRed() const;
+    void mostrarTablasDeEnrutamiento() const;
 
-    // --- Consultas ---
-    void imprimirRed() const;
-    pair<int, vector<string>> rutaMasCorta(const string& origen, const string& destino) const;
-    void preguntarRuta() const;
+    void agregarEnrutador();
+    void eliminarEnrutador(int id);
 
-    vector<string> listaEnrutadores() const;
+    void agregarEnlaceSeguro(int id1, int id2, int costo);
+    void eliminarEnlaceSeguro(int id1, int id2);
+
+    bool guardarEnArchivo(const string& filename) const;
+    bool cargarDesdeArchivo(const string& filename);
+
+    void calcularRutaMasCorta(int o, int d);
+
+   
+    void actualizarTodasLasTablas();
+
+private:
+    void dijkstra(Router* origen, Router* destino, int& costo, vector<Router*>& ruta) const;
 };
 
 #endif
